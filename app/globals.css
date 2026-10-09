@@ -162,11 +162,6 @@
   }
 }
 
-.payslip-copy-print-only,
-.payslip-cut-line {
-  display: none;
-}
-
 @media print {
   @page {
     size: A4 portrait;
@@ -197,37 +192,32 @@
   }
 
   .payslip-print-sheet {
-    display: flex !important;
-    flex-direction: column !important;
+    display: block !important;
     width: 100% !important;
     max-width: none !important;
-    height: 281mm !important; /* A4 height minus page margins */
     margin: 0 !important;
   }
 
   .payslip-copy {
-    display: flex !important;
-    flex-direction: column !important;
-    justify-content: center !important;
+    display: block !important;
     box-sizing: border-box !important;
     width: 100% !important;
     max-width: none !important;
-    height: 50% !important;
+    max-height: 140mm !important; /* half of A4 */
     margin: 0 !important;
     box-shadow: none !important;
-    padding: 6mm 8mm !important;
+    padding: 5mm 6mm !important;
     overflow: hidden !important;
   }
 
-  .payslip-copy-print-only {
-    display: flex !important;
+  .payslip-copy .grid.grid-cols-2 {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
   }
 
-  .payslip-cut-line {
-    display: block !important;
-    width: 100% !important;
-    height: 0 !important;
-    border-top: 1px dashed #b0b7c3 !important;
-    margin: 0 !important;
+  .payslip-copy .grid.grid-cols-3,
+  .payslip-copy .grid.grid-cols-4,
+  .payslip-copy .grid.grid-cols-\[1\.1fr_auto_1\.1fr\] {
+    display: grid !important;
   }
 }

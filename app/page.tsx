@@ -15,6 +15,7 @@ type PayslipData = {
   basicPay: string
   totalAbsents: string
   allowance: string
+  halfDay: string
   loanDeduction: string
   loanInstallmentNumber: string
 }
@@ -34,6 +35,7 @@ const initialData: PayslipData = {
   basicPay: '0.00',
   totalAbsents: '0',
   allowance: '0.00',
+  halfDay: '0.00',
   loanDeduction: '0.00',
   loanInstallmentNumber: '',
 }
@@ -88,35 +90,30 @@ export default function Page() {
     setExportError('')
 
     try {
-      const canvas = await html2canvas(payslip, { scale: 2, useCORS: true, backgroundColor: '#ffffff' })
-      const imageData = canvas.toDataURL('image/png')
+      const canvas = await html2canvas(payslip, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: '#ffffff',
+        width: payslip.scrollWidth,
+        windowWidth: Math.max(payslip.scrollWidth, 900),
+      })
       const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
       const pageWidth = pdf.internal.pageSize.getWidth()
       const pageHeight = pdf.internal.pageSize.getHeight()
-      const halfHeight = pageHeight / 2
+      // One wide payslip across the top half of A4
       const marginX = 10
       const marginY = 8
       const maxWidth = pageWidth - marginX * 2
-      const maxHeight = halfHeight - marginY * 2
-      const scale = Math.min(maxWidth / canvas.width, maxHeight / canvas.height)
-      const imageWidth = canvas.width * scale
-      const imageHeight = canvas.height * scale
+      const maxHeight = pageHeight / 2 - marginY * 2
+      // Prefer full page width so the slip stays horizontal
+      let imageWidth = maxWidth
+      let imageHeight = (canvas.height * imageWidth) / canvas.width
+      if (imageHeight > maxHeight) {
+        imageHeight = maxHeight
+        imageWidth = (canvas.width * imageHeight) / canvas.height
+      }
       const offsetX = marginX + (maxWidth - imageWidth) / 2
-
-      // Two identical payslips on one A4 page (top + bottom half)
-      pdf.addImage(imageData, 'PNG', offsetX, marginY + (maxHeight - imageHeight) / 2, imageWidth, imageHeight)
-      pdf.setDrawColor(180)
-      pdf.setLineDashPattern([2, 2], 0)
-      pdf.line(marginX, halfHeight, pageWidth - marginX, halfHeight)
-      pdf.setLineDashPattern([], 0)
-      pdf.addImage(
-        imageData,
-        'PNG',
-        offsetX,
-        halfHeight + marginY + (maxHeight - imageHeight) / 2,
-        imageWidth,
-        imageHeight,
-      )
+      pdf.addImage(canvas.toDataURL('image/png'), 'PNG', offsetX, marginY, imageWidth, imageHeight)
       pdf.save(`${data.employeeName || 'employee'}-payslip.pdf`)
     } catch {
       setExportError('Could not create the PDF. Please try again.')
@@ -126,10 +123,11 @@ export default function Page() {
   const basicPay = toNumber(data.basicPay)
   const totalAbsents = toNumber(data.totalAbsents)
   const allowance = toNumber(data.allowance)
+  const halfDay = toNumber(data.halfDay)
   const loanDeduction = toNumber(data.loanDeduction)
   const absentDeduction = (basicPay / 30) * totalAbsents
   const earnings = basicPay + allowance
-  const deductions = absentDeduction + loanDeduction
+  const deductions = absentDeduction + halfDay + loanDeduction
   const netPay = earnings - deductions
 
   const selectValue =
@@ -251,6 +249,12 @@ export default function Page() {
               readOnly
             />
             <Editor
+              label="Half day deduction (PKR)"
+              value={data.halfDay}
+              onChange={(value) => updateField('halfDay', value)}
+              type="number"
+            />
+            <Editor
               label="Loan deduction (PKR)"
               value={data.loanDeduction}
               onChange={(value) => updateField('loanDeduction', value)}
@@ -264,31 +268,18 @@ export default function Page() {
           </div>
         </section>
 
-        <div className="payslip-print-sheet mx-auto w-full max-w-[760px]">
+        <div className="payslip-print-sheet mx-auto w-full max-w-[920px]">
           <PayslipCard
             data={data}
             basicPay={basicPay}
             allowance={allowance}
             totalAbsents={totalAbsents}
             absentDeduction={absentDeduction}
+            halfDay={halfDay}
             loanDeduction={loanDeduction}
             earnings={earnings}
             deductions={deductions}
             netPay={netPay}
-            capture
-          />
-          <div className="payslip-cut-line" aria-hidden />
-          <PayslipCard
-            data={data}
-            basicPay={basicPay}
-            allowance={allowance}
-            totalAbsents={totalAbsents}
-            absentDeduction={absentDeduction}
-            loanDeduction={loanDeduction}
-            earnings={earnings}
-            deductions={deductions}
-            netPay={netPay}
-            printOnly
           />
         </div>
       </div>
@@ -335,71 +326,73 @@ function PayslipCard({
   allowance,
   totalAbsents,
   absentDeduction,
+  halfDay,
   loanDeduction,
   earnings,
   deductions,
   netPay,
-  capture = false,
-  printOnly = false,
 }: {
   data: PayslipData
   basicPay: number
   allowance: number
   totalAbsents: number
   absentDeduction: number
+  halfDay: number
   loanDeduction: number
   earnings: number
   deductions: number
   netPay: number
-  capture?: boolean
-  printOnly?: boolean
 }) {
   return (
     <article
-      {...(capture ? { 'data-payslip': true } : {})}
-      className={`payslip-copy bg-white px-5 py-7 shadow-[0_8px_26px_rgba(24,33,49,0.06)] sm:px-10 sm:py-9 ${
-        printOnly ? 'payslip-copy-print-only' : ''
-      }`}
-      aria-hidden={printOnly || undefined}
+      data-payslip
+      className="payslip-copy w-full bg-white px-6 py-5 shadow-[0_8px_26px_rgba(24,33,49,0.06)]"
     >
-      <div className="border-t-2 border-[#182131] pt-6">
-        <div className="grid grid-cols-3 items-start gap-4">
-          <div className="min-h-16">
+      <div className="border-t-2 border-[#182131] pt-4">
+        <div className="grid grid-cols-[1.1fr_auto_1.1fr] items-center gap-3">
+          <div className="min-w-0">
             <img
               src={FOUNDATION_LOGO}
               alt="Hope for Life Foundation logo"
-              className="max-h-12 max-w-28 object-contain object-left"
+              className="max-h-10 max-w-24 object-contain object-left"
             />
-            <p className="mt-1 text-xs font-semibold text-[#647084]">{data.companyName}</p>
+            <p className="mt-1 truncate text-[11px] font-semibold text-[#647084]">{data.companyName}</p>
           </div>
-          <h2 className="text-center text-3xl font-bold tracking-tight">PAYSLIP</h2>
-          <div className="text-right text-xs font-bold uppercase tracking-[0.12em] text-[#465165]">
+          <h2 className="text-center text-2xl font-bold tracking-tight">PAYSLIP</h2>
+          <div className="text-right text-[10px] font-bold uppercase tracking-[0.12em] text-[#465165]">
             <p>Payment date</p>
-            <p className="mt-1 text-sm tracking-normal text-[#182131]">{data.paymentDate}</p>
+            <p className="mt-0.5 text-sm font-semibold tracking-normal text-[#182131]">{data.paymentDate}</p>
           </div>
         </div>
 
-        <div className="mt-6 grid grid-cols-2 border-b border-t border-[#cbd2dc] py-4 text-xs font-bold uppercase tracking-[0.12em] text-[#465165]">
+        <div className="mt-4 grid grid-cols-4 gap-3 border-b border-t border-[#cbd2dc] py-3 text-[10px] font-bold uppercase tracking-[0.1em] text-[#465165]">
           <div>
             <p>Pay period</p>
-            <p className="mt-1 text-sm tracking-normal text-[#182131]">{data.payPeriod}</p>
+            <p className="mt-1 text-sm font-semibold tracking-normal normal-case text-[#182131]">{data.payPeriod}</p>
+          </div>
+          <div>
+            <p>Employee</p>
+            <p className="mt-1 text-sm font-semibold tracking-normal normal-case text-[#182131]">{data.employeeName}</p>
+          </div>
+          <div>
+            <p>Designation</p>
+            <p className="mt-1 text-sm font-semibold tracking-normal normal-case text-[#182131]">{data.designation}</p>
+          </div>
+          <div className="text-right">
+            <p>Total absents</p>
+            <p className="mt-1 text-sm font-semibold tracking-normal normal-case text-[#182131]">{totalAbsents}</p>
             {data.loanInstallmentNumber.trim() && (
               <>
-                <p className="mt-3">Loan installment</p>
-                <p className="mt-1 text-sm tracking-normal text-[#182131]">{data.loanInstallmentNumber}</p>
+                <p className="mt-2">Loan installment</p>
+                <p className="mt-1 text-sm font-semibold tracking-normal normal-case text-[#182131]">
+                  {data.loanInstallmentNumber}
+                </p>
               </>
             )}
           </div>
-          <div className="text-right">
-            <p>Employee</p>
-            <p className="mt-1 text-sm tracking-normal text-[#182131]">{data.employeeName}</p>
-            <p className="mt-1 text-xs font-bold uppercase tracking-[0.12em] text-[#465165]">{data.designation}</p>
-            <p className="mt-3">Total absents</p>
-            <p className="mt-1 text-sm tracking-normal text-[#182131]">{totalAbsents}</p>
-          </div>
         </div>
 
-        <div className="mt-7 grid gap-6 sm:grid-cols-2 sm:gap-0">
+        <div className="mt-4 grid grid-cols-2 gap-0">
           <PayslipTable
             title="Earnings"
             rows={[
@@ -411,6 +404,7 @@ function PayslipCard({
             title="Deductions"
             rows={[
               ['Absent', money(absentDeduction)],
+              ['Half Day', money(halfDay)],
               [
                 data.loanInstallmentNumber.trim()
                   ? `Loan (Inst. ${data.loanInstallmentNumber.trim()})`
@@ -422,20 +416,22 @@ function PayslipCard({
           />
         </div>
 
-        <div className="mt-7 border-t-2 border-[#182131] pt-8 sm:ml-auto sm:w-[52%]">
+        <div className="mt-4 grid grid-cols-3 items-end gap-4 border-t-2 border-[#182131] pt-3">
           <div className="flex justify-between text-sm">
             <span>Total Earnings</span>
             <strong>{money(earnings)}</strong>
           </div>
-          <div className="mt-3 flex justify-between text-sm">
+          <div className="flex justify-between text-sm">
             <span>Total Deductions</span>
             <strong className="text-red-600">-{money(deductions)}</strong>
           </div>
-          <div className="mt-5 flex justify-between border-t border-[#465165] pt-4 text-lg font-bold">
-            <span>NET PAY</span>
-            <span>{money(netPay)}</span>
+          <div>
+            <div className="flex justify-between text-base font-bold">
+              <span>NET PAY</span>
+              <span>{money(netPay)}</span>
+            </div>
+            <div className="mt-2 border-b-[4px] border-[#182131]" />
           </div>
-          <div className="mt-3 border-b-[5px] border-[#182131]" />
         </div>
       </div>
     </article>
@@ -452,13 +448,13 @@ function PayslipTable({
   negative?: boolean
 }) {
   return (
-    <div className="border-b border-[#cbd2dc] sm:pr-5 sm:[&:last-child]:border-l sm:[&:last-child]:pl-5 sm:[&:last-child]:pr-0">
-      <div className="flex justify-between border-b-2 border-[#182131] bg-[#f1f4f8] px-2 py-2 text-[11px] font-bold uppercase tracking-[0.14em] text-[#182131]">
+    <div className="border-b border-[#cbd2dc] pr-4 last:border-l last:pl-4 last:pr-0">
+      <div className="flex justify-between border-b-2 border-[#182131] bg-[#f1f4f8] px-2 py-1.5 text-[11px] font-bold uppercase tracking-[0.14em] text-[#182131]">
         <span>{title}</span>
         <span>Amount</span>
       </div>
       {rows.map(([label, amount]) => (
-        <div key={label} className="flex justify-between border-b border-[#cbd2dc] px-0 py-4 text-sm">
+        <div key={label} className="flex justify-between border-b border-[#cbd2dc] px-0 py-2.5 text-sm">
           <span>{label}</span>
           <strong className={negative ? 'text-red-600' : ''}>{amount}</strong>
         </div>
