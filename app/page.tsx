@@ -23,7 +23,7 @@ type PayslipData = {
 const FOUNDATION_LOGO =
   'https://hebbkx1anhila5yf.public.blob.vercel-storage.com/HLF%20Logo%20Black-Roe5fhS7yL0HMDYzGyxFP6qEjLWFvl.png'
 
-const DEFAULT_DESIGNATIONS = ['Manager', 'IT Manager', 'Principal'] as const
+const DEFAULT_DESIGNATIONS = ['Manager', 'IT Manager', 'Principal', 'Academic Teacher','Special Educator','Secretary','Receptionist', 'Guard', 'Jr. Staff','Domestic Staff','Chef','Behavior Therapist','Speech Therapist','Occupational Therapist','Physiotherapist','Psychologist'] as const
 const ADD_DESIGNATION = '__add__'
 
 const initialData: PayslipData = {
