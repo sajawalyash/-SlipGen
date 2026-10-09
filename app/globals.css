@@ -162,13 +162,24 @@
   }
 }
 
+.payslip-copy-print-only,
+.payslip-cut-line {
+  display: none;
+}
+
 @media print {
+  @page {
+    size: A4 portrait;
+    margin: 8mm;
+  }
+
   body {
     background: white !important;
   }
 
   main > div > header,
-  main > div > section {
+  main > div > section,
+  main > div > p[role='alert'] {
     display: none !important;
   }
 
@@ -177,15 +188,46 @@
     padding: 0 !important;
   }
 
-  main > div,
-  article[data-payslip] {
+  main > div {
     display: block !important;
     max-width: none !important;
     width: 100% !important;
+    margin: 0 !important;
+    gap: 0 !important;
   }
 
-  article[data-payslip] {
+  .payslip-print-sheet {
+    display: flex !important;
+    flex-direction: column !important;
+    width: 100% !important;
+    max-width: none !important;
+    height: 281mm !important; /* A4 height minus page margins */
+    margin: 0 !important;
+  }
+
+  .payslip-copy {
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: center !important;
+    box-sizing: border-box !important;
+    width: 100% !important;
+    max-width: none !important;
+    height: 50% !important;
+    margin: 0 !important;
     box-shadow: none !important;
-    padding: 0 !important;
+    padding: 6mm 8mm !important;
+    overflow: hidden !important;
+  }
+
+  .payslip-copy-print-only {
+    display: flex !important;
+  }
+
+  .payslip-cut-line {
+    display: block !important;
+    width: 100% !important;
+    height: 0 !important;
+    border-top: 1px dashed #b0b7c3 !important;
+    margin: 0 !important;
   }
 }
