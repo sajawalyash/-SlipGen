@@ -10,14 +10,15 @@ type PayslipData = {
   companyName: string
   employeeName: string
   designation: string
-  payPeriod: string
+  payPeriodFrom: string
+  payPeriodTo: string
   paymentDate: string
   basicPay: string
   totalAbsents: string
+  halfDays: string
   allowance: string
-  halfDay: string
-  loanDeduction: string
-  loanInstallmentNumber: string
+  securityDeposit: string
+  securityDepositNumber: string
 }
 
 const FOUNDATION_LOGO =
@@ -30,14 +31,15 @@ const initialData: PayslipData = {
   companyName: 'Hope for Life Foundation',
   employeeName: 'Employee',
   designation: 'Manager',
-  payPeriod: 'Oct 1, 2026  –  Oct 31, 2026',
-  paymentDate: 'Oct 2, 2026',
+  payPeriodFrom: '2026-10-01',
+  payPeriodTo: '2026-10-31',
+  paymentDate: '2026-10-02',
   basicPay: '0.00',
   totalAbsents: '0',
+  halfDays: '0',
   allowance: '0.00',
-  halfDay: '0.00',
-  loanDeduction: '0.00',
-  loanInstallmentNumber: '',
+  securityDeposit: '0.00',
+  securityDepositNumber: '',
 }
 
 const inputClassName =
@@ -45,11 +47,28 @@ const inputClassName =
 
 function money(value: string | number) {
   const amount = typeof value === 'number' ? value : Number.parseFloat(value) || 0
-  return `PKR ${amount.toFixed(2)}`
+  return `PKR ${new Intl.NumberFormat('en-US', {
+    maximumFractionDigits: 2,
+  }).format(amount)}`
+}
+
+function formatAmount(value: number) {
+  return new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 }).format(value)
 }
 
 function toNumber(value: string) {
   return Number.parseFloat(value) || 0
+}
+
+function formatDate(value: string) {
+  const [year, month, day] = value.split('-').map(Number)
+  if (!year || !month || !day) return value
+
+  return new Date(year, month - 1, day).toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  })
 }
 
 export default function Page() {
@@ -122,12 +141,13 @@ export default function Page() {
 
   const basicPay = toNumber(data.basicPay)
   const totalAbsents = toNumber(data.totalAbsents)
+  const halfDays = toNumber(data.halfDays)
   const allowance = toNumber(data.allowance)
-  const halfDay = toNumber(data.halfDay)
-  const loanDeduction = toNumber(data.loanDeduction)
+  const securityDeposit = toNumber(data.securityDeposit)
   const absentDeduction = (basicPay / 30) * totalAbsents
+  const halfDayDeduction = (basicPay / 30) * 0.5 * halfDays
   const earnings = basicPay + allowance
-  const deductions = absentDeduction + halfDay + loanDeduction
+  const deductions = absentDeduction + halfDayDeduction + securityDeposit
   const netPay = earnings - deductions
 
   const selectValue =
@@ -215,12 +235,23 @@ export default function Page() {
               </label>
             )}
 
-            <Editor label="Payment date" value={data.paymentDate} onChange={(value) => updateField('paymentDate', value)} />
             <Editor
-              label="Pay period"
-              value={data.payPeriod}
-              onChange={(value) => updateField('payPeriod', value)}
-              className="sm:col-span-2"
+              label="Payment date"
+              value={data.paymentDate}
+              onChange={(value) => updateField('paymentDate', value)}
+              type="date"
+            />
+            <Editor
+              label="Pay period from"
+              value={data.payPeriodFrom}
+              onChange={(value) => updateField('payPeriodFrom', value)}
+              type="date"
+            />
+            <Editor
+              label="Pay period to"
+              value={data.payPeriodTo}
+              onChange={(value) => updateField('payPeriodTo', value)}
+              type="date"
             />
             <Editor
               label="Basic pay (PKR)"
@@ -243,27 +274,35 @@ export default function Page() {
             />
             <Editor
               label="Absent deduction (auto)"
-              value={absentDeduction.toFixed(2)}
+              value={formatAmount(absentDeduction)}
               onChange={() => undefined}
-              type="number"
+              type="text"
               readOnly
             />
             <Editor
-              label="Half day deduction (PKR)"
-              value={data.halfDay}
-              onChange={(value) => updateField('halfDay', value)}
+              label="Total half days"
+              value={data.halfDays}
+              onChange={(value) => updateField('halfDays', value)}
+              type="number"
+              step="1"
+            />
+            <Editor
+              label="Half day deduction (auto)"
+              value={formatAmount(halfDayDeduction)}
+              onChange={() => undefined}
+              type="text"
+              readOnly
+            />
+            <Editor
+              label="Security deposit (PKR)"
+              value={data.securityDeposit}
+              onChange={(value) => updateField('securityDeposit', value)}
               type="number"
             />
             <Editor
-              label="Loan deduction (PKR)"
-              value={data.loanDeduction}
-              onChange={(value) => updateField('loanDeduction', value)}
-              type="number"
-            />
-            <Editor
-              label="Loan installment number"
-              value={data.loanInstallmentNumber}
-              onChange={(value) => updateField('loanInstallmentNumber', value)}
+              label="Security Deposit Number"
+              value={data.securityDepositNumber}
+              onChange={(value) => updateField('securityDepositNumber', value)}
             />
           </div>
         </section>
@@ -275,8 +314,9 @@ export default function Page() {
             allowance={allowance}
             totalAbsents={totalAbsents}
             absentDeduction={absentDeduction}
-            halfDay={halfDay}
-            loanDeduction={loanDeduction}
+            halfDays={halfDays}
+            halfDayDeduction={halfDayDeduction}
+            securityDeposit={securityDeposit}
             earnings={earnings}
             deductions={deductions}
             netPay={netPay}
@@ -326,8 +366,9 @@ function PayslipCard({
   allowance,
   totalAbsents,
   absentDeduction,
-  halfDay,
-  loanDeduction,
+  halfDays,
+  halfDayDeduction,
+  securityDeposit,
   earnings,
   deductions,
   netPay,
@@ -337,8 +378,9 @@ function PayslipCard({
   allowance: number
   totalAbsents: number
   absentDeduction: number
-  halfDay: number
-  loanDeduction: number
+  halfDays: number
+  halfDayDeduction: number
+  securityDeposit: number
   earnings: number
   deductions: number
   netPay: number
@@ -361,14 +403,16 @@ function PayslipCard({
           <h2 className="text-center text-2xl font-bold tracking-tight">PAYSLIP</h2>
           <div className="text-right text-[10px] font-bold uppercase tracking-[0.12em] text-[#465165]">
             <p>Payment date</p>
-            <p className="mt-0.5 text-sm font-semibold tracking-normal text-[#182131]">{data.paymentDate}</p>
+            <p className="mt-0.5 text-sm font-semibold tracking-normal text-[#182131]">{formatDate(data.paymentDate)}</p>
           </div>
         </div>
 
         <div className="mt-4 grid grid-cols-4 gap-3 border-b border-t border-[#cbd2dc] py-3 text-[10px] font-bold uppercase tracking-[0.1em] text-[#465165]">
           <div>
             <p>Pay period</p>
-            <p className="mt-1 text-sm font-semibold tracking-normal normal-case text-[#182131]">{data.payPeriod}</p>
+            <p className="mt-1 text-sm font-semibold tracking-normal normal-case text-[#182131]">
+              {[data.payPeriodFrom, data.payPeriodTo].filter(Boolean).map(formatDate).join(' – ')}
+            </p>
           </div>
           <div>
             <p>Employee</p>
@@ -381,11 +425,11 @@ function PayslipCard({
           <div className="text-right">
             <p>Total absents</p>
             <p className="mt-1 text-sm font-semibold tracking-normal normal-case text-[#182131]">{totalAbsents}</p>
-            {data.loanInstallmentNumber.trim() && (
+            {data.securityDepositNumber.trim() && (
               <>
-                <p className="mt-2">Loan installment</p>
+                <p className="mt-2">Security deposit number</p>
                 <p className="mt-1 text-sm font-semibold tracking-normal normal-case text-[#182131]">
-                  {data.loanInstallmentNumber}
+                  {data.securityDepositNumber}
                 </p>
               </>
             )}
@@ -403,14 +447,9 @@ function PayslipCard({
           <PayslipTable
             title="Deductions"
             rows={[
-              ['Absent', money(absentDeduction)],
-              ['Half Day', money(halfDay)],
-              [
-                data.loanInstallmentNumber.trim()
-                  ? `Loan (Inst. ${data.loanInstallmentNumber.trim()})`
-                  : 'Loan',
-                money(loanDeduction),
-              ],
+              [`Absents (${totalAbsents})`, money(absentDeduction)],
+              [`Half day (${halfDays})`, money(halfDayDeduction)],
+              ['Security deposit', money(securityDeposit)],
             ]}
             negative
           />
@@ -418,7 +457,7 @@ function PayslipCard({
 
         <div className="mt-4 grid grid-cols-3 items-end gap-4 border-t-2 border-[#182131] pt-3">
           <div className="flex justify-between text-sm">
-            <span>Total Earnings</span>
+            <span>Total Salary</span>
             <strong>{money(earnings)}</strong>
           </div>
           <div className="flex justify-between text-sm">
